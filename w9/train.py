@@ -17,7 +17,12 @@ from utils import (bilinear_upsample_weights, grayscale_to_voc_impl)
 
 import logging
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', level=logging.DEBUG)
+#logging.basicConfig(format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG,
+                format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                datefmt='%a, %d %b %Y %H:%M:%S',
+                filename='/tmp/w9.log',
+                filemode='w')
 
 
 def parse_args(check=True):
@@ -64,10 +69,10 @@ global_step = tf.Variable(0, trainable=False, name='global_step', dtype=tf.int64
 
 
 
-# Define the model that we want to use 
-# modify num_classes to number_of_classes at the last layer 
+# Define the model that we want to use
+# modify num_classes to number_of_classes at the last layer
 # set fc_conv_padding to 'SAME'
-with slim.arg_scope(vgg.vgg_arg_scope()): 
+with slim.arg_scope(vgg.vgg_arg_scope()):
     logits, end_points = vgg.vgg_16(image_tensor,
                                     num_classes=number_of_classes,
                                     is_training=is_training_placeholder,
@@ -90,7 +95,7 @@ upsampled_logits_shape = tf.stack([
                                   ])
 
 
-								  
+
 # aux_logits_pool4 : add a 1 x 1 convolution layer on top of pool4 to produce additional class prediction
 pool4_feature = end_points['vgg_16/pool4']
 with tf.variable_scope('vgg_16/fc8'):
@@ -99,7 +104,7 @@ with tf.variable_scope('vgg_16/fc8'):
                                  weights_initializer=tf.zeros_initializer,
                                  scope='conv_pool4')
 
-								 
+
 # compute the predictions on top of fc8 at stride 32 by adding a 2x upsampling layer
 upsample_filter_pool4_np_x2 = bilinear_upsample_weights(2,  # upsample_factor,
                                                   number_of_classes)
@@ -111,7 +116,7 @@ upsampled_logits = tf.nn.conv2d_transpose(logits, upsample_filter_pool4_tensor_x
                                           strides=[1, 2, 2, 1],
                                           padding='SAME')
 
-										  
+
 # fuse aux_logits_pool4 with upsampled_logits by summing both predictions.
 upsampled_logits = upsampled_logits + aux_logits_pool4
 
@@ -125,7 +130,7 @@ with tf.variable_scope('vgg_16/fc8'):
                                  weights_initializer=tf.zeros_initializer,
                                  scope='conv_pool3')
 
-								 
+
 # Perform a 2x upsampling on the predictions fused from pool4 and fc8
 upsample_filter_pool3_np_x2 = bilinear_upsample_weights(2,  # upsample_factor,
                                                   number_of_classes)
@@ -137,7 +142,7 @@ upsampled_logits = tf.nn.conv2d_transpose(upsampled_logits, upsample_filter_pool
                                           strides=[1, 2, 2, 1],
                                           padding='SAME')
 
-										  
+
 # fuse predictions from pool3 (aux_logits_pool3) with a 2x upsampling of predictions fused from pool4 and conv7
 upsampled_logits = upsampled_logits + aux_logits_pool3
 
